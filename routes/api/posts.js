@@ -6,6 +6,7 @@ const auth = require('../../middleware/auth');
 const Profile = require('../../models/Profile');
 const User = require('../../models/User');
 const Posts = require('../../models/Post');
+
 // @route   POST api/posts
 // @desc    Create a Post
 // @access  Private
@@ -44,5 +45,67 @@ router.post(
     }
   }
 );
+
+// @route   GET api/posts
+// @desc    GET All Posts
+// @access  Private
+router.get('/', auth, async (req, res) => {
+  try {
+    const posts = await Posts.find().sort({ date: '-1' });
+    res.json(posts);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET api/posts/:id
+// @desc    GET Post by ID
+// @access  Private
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const post = await Posts.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ msg: 'Post Not Found' });
+    }
+
+    res.json(post);
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Post Not Found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE api/posts/:id
+// @desc    Delete Postby Id
+// @access  Private
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    //dont use findbyidandremove karena harus mematching kan terlebih dahulu user id yang membuat post dengan user login
+    const post = await Posts.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ msg: 'Post Not Found' });
+    }
+
+    if (post.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User Not authorized' });
+    }
+
+    await post.remove();
+
+    res.json('Post Removed');
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Post Not Found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
 
 module.exports = router;
